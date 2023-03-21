@@ -13,7 +13,8 @@ import glob
 import tkinter.font as tkfont
 from tkinter.messagebox import askokcancel, showinfo, WARNING,askyesno
 from tkinter import scrolledtext
-nImage = 1270
+nImage = 0
+nMaxImage = 1270
 startImageID = 37
 h,w = 1504,1504
 resize_h, resize_w = 320,320
@@ -159,8 +160,8 @@ def generateMeanMask (save_path):
     txt_mainText.update()
 
     print("stack files...")
-    stackedImg = np.zeros((nImage, h, h))
-    countFile = np.zeros((nImage))
+    stackedImg = np.zeros((nMaxImage, h, h))
+    countFile = np.zeros((nMaxImage))
     print (len(data_dict))
     for item in data_dict:
         folderName = item['folder_name']
@@ -168,9 +169,9 @@ def generateMeanMask (save_path):
         countFileFolder= 0
         txt_mainText.insert(END, "Processing folder "+folderName+" ... \n  ")
         txt_mainText.update()
-        for imageID in tqdm  (range(nImage)):
+        for imageID in tqdm  (range(nMaxImage)):
             if item['isReversed']:
-                imageID_temp = nImage - imageID
+                imageID_temp = nMaxImage - imageID
             else:
                 imageID_temp = imageID
             #print (imageID)
@@ -206,8 +207,8 @@ def generateMeanMask (save_path):
             lb_status.config(text="Generating mean mask " +str( int(imageID * 100 / 1270)) + "%")
             txt_mainText.update()
     '''
-    nStackMask =20
-    stepStack =nImage//nStackMask
+    nStackMask = 20
+    stepStack = nMaxImage//nStackMask
 
     txt_mainText.insert(END, "Generating stacked mean mask ... \n")
     print ("Generate stacked mask ... ")
@@ -527,13 +528,32 @@ imgtk = None
 currentMaskID = 1
 nMask = 0
 displayImage = None
+
+def change_brush_size(event):
+    global brush_size
+    factor = 1
+    #print ((-1) * int((event.delta / 120) * factor))
+    brush_size += (1) * int((event.delta / 120) * factor)
+
+    brush_size = max(brush_size, 10)
+    brush_size = min(brush_size, 50)
+
+    lb_status.config(text="Brush size " + str(brush_size))
+    lb_status.update()
+    mouse_move(event)
+
+
+
 #==============================================#
+import platform
+
+OS = platform.system()
 
 if __name__ == '__main__':
     try:
         # main form
         root = Tk()  # create root window
-
+        #root.iconbitmap("icon.ico")
         root.title("GUI Mask Out - chgiang@2023")
         root.config(background=background_color)
         root.geometry("710x510")
@@ -586,8 +606,12 @@ if __name__ == '__main__':
         panelA.grid(row=2, column=0, pady=10, padx=4, columnspan=3, sticky=tkinter.N)
         panelA.bind("<Motion>", mouse_move)
         panelA.bind("<Button-1>", mouse_click)
-        panelA.bind("<Button-4 >", increase_brush_size)
-        panelA.bind("<Button-5>", decrease_brush_size)
+        if OS == 'Windows':
+            panelA.bind("<MouseWheel>", change_brush_size)
+        else:
+            panelA.bind("<Button-4>", increase_brush_size)
+            panelA.bind("<Button-5>", decrease_brush_size)
+
         # Prev
         btn_browseMaskFolder = MyButton(edit_mask_frame, text="<< Prev", command=selectPrevMask)
         btn_browseMaskFolder.grid(row=1, column=0, sticky=tkinter.W)

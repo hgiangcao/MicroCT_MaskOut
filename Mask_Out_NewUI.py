@@ -66,10 +66,7 @@ def getListImage(item,r_hight=256,r_width=256):
                 resized_img = cv2.resize(image_file, dsize=(r_hight, r_width), interpolation=cv2.INTER_AREA)
                 listImage_resize.append (resized_img)
 
-        lb_status.config(text="Loading data ..." + str((int)(imageID/nImage*100))+ "%")
-        lb_status.update()
-
-    print ("done load ",len(listImage), "images")
+    print ("done load ",len(listImgFileName), "images")
 
     #reconfig slider
     #slider_image = CTkSlider(main_frame, from_=1, to=len(listImage), number_of_steps=len(listImage), width=300, command=slideImage)
@@ -80,17 +77,11 @@ def getListImage(item,r_hight=256,r_width=256):
     updateDisplayImage()
 
 def getBrowseFolder():
-    global root_path,data_folder_dict
+    global root_path
 
-    
     returnBrowseMaskFolder = filedialog.askopenfilename(initialdir=rootPath, filetypes=(("BMP", "*.bmp"),
                                                                                         ("all files", "*.*")))
     if len(returnBrowseMaskFolder) > 0:
-        root.config(cursor="watch")
-        lb_status.config(text="Loading sequence images ...")
-        lb_status.update()
-
-
         print(returnBrowseMaskFolder)
         splitedStr = returnBrowseMaskFolder.split("/")
 
@@ -119,13 +110,8 @@ def getBrowseFolder():
 
         #print_list_folder()
 
-        #update mask button
-        btn_selectMask.config(state=NORMAL)
-
         lb_status.config(text="Added folder " + selectedFolder_nameOnly)
         lb_status.update()
-
-    root.config(cursor="")
 
 
 def getBrowseMaskFolder():
@@ -140,9 +126,6 @@ def getBrowseMaskFolder():
         maskFolder = '/'.join(maskFolder) +"/"
         print (maskFolder)
         getListMask(maskFolder,r_hight=resize_h,r_width=resize_w)
-
-        # update mask button
-        btn_Process.config(state=NORMAL)
 
         lb_status.config(text="Done load "+str(len(data_mask_dict))+" maskes")
 
@@ -170,7 +153,7 @@ def getListMask(maskFolder=None,r_hight=460,r_width = 460):
         }
         data_mask_dict.append(item)
 
-    print ("done load ",len(listMask),len(listMask_resize),"maskes")
+    print ("done load",len(listMask),len(listMask_resize),"maskes")
     nMask = len(listMask)
 
    #updateLabelIndicator()
@@ -182,26 +165,25 @@ def getListMask(maskFolder=None,r_hight=460,r_width = 460):
 def slideImage(event):
     global  currentImageID,currentMaskID,displayImage_mask,nImage,nMask
 
-    if (len(listMask_resize)>0):
-        stepStack = nImage // nMask
+    stepStack = nImage // nMask
 
-        value =(int) (slider_image.get())
+    value =(int) (slider_image.get())
 
-        currentMaskID =  min(value//stepStack+1,20)
+    currentMaskID =  min(value//stepStack+1,20)
 
-        currentImageID = min(value,len(listImage_resize))
+    currentImageID = min(value,len(listImage_resize))
 
-        #update label
-        lb_mask_id.config(text=str(currentMaskID)+"/20")
-        lb_img_id.config(text=str(currentImageID)+"/"+str(nImage))
-        lb_processed_id.config(text=str(currentImageID) + "/" + str(nImage))
+    #update label
+    lb_mask_id.config(text=str(currentMaskID)+"/20")
+    lb_img_id.config(text=str(currentImageID)+"/"+str(nImage))
+    lb_processed_id.config(text=str(currentImageID) + "/" + str(nImage))
 
-        #update image
-        updateDisplayImage()
+    #update image
+    updateDisplayImage()
 
 import shutil
 
-def expand_mask(mask,orig_h, orig_w):
+def expand_mask(mask):
     expand_pixel = 5
     current_h, current_w = mask.shape[0],mask.shape[1]
     copy_mask = np.copy(mask)
@@ -211,20 +193,16 @@ def expand_mask(mask,orig_h, orig_w):
             if (mask[i,j]>0):
                 copy_mask[i-expand_pixel:i+expand_pixel,j-expand_pixel:j+expand_pixel] = mask[i,j]
 
-    copy_mask = cv2.resize(copy_mask, dsize=(orig_h, orig_w), interpolation=cv2.INTER_LINEAR)
+    copy_mask = cv2.resize(copy_mask, dsize=(h, w), interpolation=cv2.INTER_LINEAR)
 
     copy_mask =  np.where(copy_mask > 0, 1, 0)
 
     return copy_mask
 
-import glob
-
 def process(): #main function
     global tempListImgID,listImgFile,data_folder_dict
-    print (data_folder_dict)
+
     item = data_folder_dict[0]
-    root.config(cursor="watch")
-    root.update()
 
     folderName_full = item['full_path']
 
@@ -243,10 +221,6 @@ def process(): #main function
             image_file = readBMPOrig(fullPath)
             listImage.append(image_file)
 
-        lb_status.config(text="Loading data ..." + str((int)(imageID/nImage*50))+ "%")
-        lb_status.update()
-
-    orig_h, orig_w =listImage[0].shape[0],listImage[0].shape[1]
 
     mainFolderName = item['full_path']
     # create folder
@@ -257,7 +231,7 @@ def process(): #main function
 
     listEnhenceMask = []
     for maskID in range (len(listMask_resize)):
-        enhence_mask = expand_mask(listMask_resize[maskID],orig_h, orig_w)
+        enhence_mask = expand_mask(listMask_resize[maskID])
         listEnhenceMask.append(enhence_mask)
 
     for i in tqdm(range(len(listImage))):
@@ -274,30 +248,24 @@ def process(): #main function
         maskedImage = img*enhence_mask
 
         fileName = processedFolder + "/" + fileName
-        #print (fileName)
         cv2.imwrite(fileName, maskedImage.astype(np.uint16))
-
-        lb_status.config(text="Saving data ..." +  str((int)(i/nImage*50 + 50))+ "%")
-        lb_status.update()
 
     # 20220705_20 um_15__IR_rec.log
     # copy log file
     logfileName = r"" + item['file_patten'] + ".log"
     sourceFile = r"" + mainFolderName + "/" + logfileName
     targetFile = processedFolder + "/" + logfileName
-    #print(sourceFile)
-    #print(targetFile)
+    print(sourceFile)
+    print(targetFile)
     try:
         shutil.copyfile(sourceFile, targetFile)
         print("done copy log file")
     except:
         print("error copy log file")
 
-    #print("total:", countPoint, "points")
-    #print("Done processed", len(listImgFile), "files")
-    lb_status.config(text="Done save "+str((len(listImage_resize)))+"files")
-    open_explore(mainFolderName)
-    root.config(cursor="")
+    print("total:", countPoint, "points")
+    print("Done processed", len(listImgFile), "files")
+
 
 def updateDisplayImage():
     #display mask img
@@ -312,15 +280,14 @@ def updateDisplayImage():
         panelOrig.configure(image=imgtk)
         panelOrig.image=imgtk
 
-        if (len(listMask_resize) > 0):
-            #process
-            img = listImage_resize[currentImageID - 1]
-            mask = listMask_resize[currentMaskID-1]
-            maskoutImage = np.zeros((resize_h,resize_h, 3))
-            maskoutImage[:, :, 0] = img * (mask)
-            maskoutImagetk = ImageTk.PhotoImage(image=Image.fromarray(maskoutImage.astype(np.uint8)))
-            panelResult.configure(image=maskoutImagetk)
-            panelResult.image = maskoutImagetk
+        #process
+        img = listImage_resize[currentImageID - 1]
+        mask = listMask_resize[currentMaskID-1]
+        maskoutImage = np.zeros((resize_h,resize_h, 3))
+        maskoutImage[:, :, 0] = img * (mask)
+        maskoutImagetk = ImageTk.PhotoImage(image=Image.fromarray(maskoutImage.astype(np.uint8)))
+        panelResult.configure(image=maskoutImagetk)
+        panelResult.image = maskoutImagetk
 
 blank_image = Image.fromarray(np.ones((resize_w,resize_h)))
 currentMaskID = 1
@@ -336,7 +303,7 @@ if __name__ == '__main__':
 
         root.title("GUI Mask Out - chgiang@2023")
         root.config(background=background_color)
-        root.geometry("860x460")
+        root.geometry("860x440")
         #root.tk.call('tk', 'scaling', 1.0)
         #default_font = font.Font(family='Arial', size=11)
         default_font = tkfont.nametofont("TkDefaultFont")
@@ -349,9 +316,7 @@ if __name__ == '__main__':
         #3 button
         btn_selectExperiment = MyButton(main_frame, text="Select Experiment",command=getBrowseFolder)
         btn_selectMask= MyButton(main_frame, text="Select Masks",command=getBrowseMaskFolder)
-        btn_selectMask.config(state=DISABLED)
         btn_Process = MyButton(main_frame, text="Process!!!",background_color='green',command=process)
-        btn_Process.config(state=DISABLED)
 
         btn_selectExperiment.grid(row=0, column=0, pady=4, padx=4)
         btn_selectMask.grid(row=0, column=1, pady=4, padx=4)
@@ -380,7 +345,7 @@ if __name__ == '__main__':
         slider_image.grid(row=3, column=0, columnspan=3, pady=4, padx=4)
 
 
-        lb_status = Label(main_frame, text="This is the status bar",background='light gray',height=1,width=106,  justify=LEFT,anchor="w")
+        lb_status = Label(main_frame, text="This is the status bar",background='light gray',height=1,width=95,  justify=LEFT,anchor="w")
         lb_status.grid(row=4, column=0, pady=20, padx=0,columnspan=3)
 
 

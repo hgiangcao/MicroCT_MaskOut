@@ -13,7 +13,7 @@ import time
 import requests
 import six
 import tqdm
-
+from customtkinter import CTkSlider
 from parse_url import parse_url
 
 CHUNK_SIZE = 512 * 1024  # 512KB
@@ -309,11 +309,10 @@ from tkinter import *
 from tkinter import ttk
 from control import button_color, background_color, MyButton
 if __name__ == '__main__':
-	
-
 
 	# root window
 	root = Tk()
+	#root.iconbitmap("icon_update.ico")
 	root.geometry('300x110')
 	root.title("Update GUI_Mask_Out chgiang@2023")
 	root.config(background=background_color)
